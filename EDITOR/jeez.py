@@ -1,32 +1,29 @@
 import pygame
+import pygame_widgets
+from pygame_widgets.button import Button
 import numpy
 import os
 
-#TODO: Repair a saving function
-
 def map_save(name, data):
-	for layer in data:
-		print(data)
 	os.mkdir(name)
-	inter = []
-	for line in data[0]:
-		for layer in data:
-			inter.append(layer[data[0].index(line)])
-	npcs = numpy.asarray(inter).reshape((len(data[0]), len(data), len(data[0][0])))
 	res_list = []
-	for i in reversed(range(len(npcs))):
-		res_list.append(npcs[i].tolist())
+	data_np = numpy.asarray(data)
+	for i in range(len(data_np[0][0])):
+		res_list.append(data_np[:, i, :].tolist())
+
 	counter = 0
-	print(res_list)
 	for layer in res_list:
-		write_str = str()
-		for line in layer:
-			str_line = [str(i) for i in line]
-			write_str = write_str + ''.join(str_line) + '\n'
-		with open(f'{name}/{counter}.txt', 'w') as f:
+		write_str = '\n'.join([''.join([str(j) for j in line]) for line in layer])
+		with open(f'{name}/{counter}.txt', 'w+') as f:
 			f.write(write_str)
 		counter += 1
 
+def single_pos(coord, c_list):
+	if len(c_list) == 1:
+		return c_list
+	else:
+		c_list.append(coord)
+		return c_list
 
 pygame.init()
 
@@ -38,9 +35,42 @@ WIDTH, HEIGHT = pygame.display.get_surface().get_size()
 pygame.display.set_caption('Test')
 clock = pygame.time.Clock()
 
+wall = False
+floor = False
+
+def ch_wall():
+	global wall
+	if wall:
+		wall = False
+	else:
+		wall = True
+
+def ch_floor():
+	global floor
+	if floor:
+		floor = False
+	else:
+		floor = True
+
+btn_floor = Button(
+    screen, 50, 50, 100, 20, text='Пол',
+    fontSize=20, margin=20,
+    inactiveColour=(255, 0, 0),
+    hoverColour=(200, 50, 50),
+    pressedColour=(0, 255, 0), radius=2,
+    onClick=ch_floor
+)
+btn_wall = Button(
+    screen, 50, 80, 100, 20, text='Стена',
+    fontSize=20, margin=20,
+    inactiveColour=(255, 0, 0),
+    pressedColour=(0, 255, 0), radius=2,
+    onClick=ch_wall
+)
+
 tile = pygame.image.load('tile.png').convert_alpha()
 
-map_size = 15
+map_size = 55
 height = 6
 level = 0
 coord_data = [[[0 for l in range(map_size)] for j in range(map_size)] for i in range(height)]
@@ -62,6 +92,7 @@ while x_last != dim_map + TILESIZE:
 iso_coords = []
 
 iso_matrix = [[1, 1],[-0.5, 0.5]]
+iso_np = numpy.asarray(iso_matrix)
 
 for coord in coords:
 	first_tuple = (iso_matrix[0][0]*coord[0][0] + iso_matrix[0][1]*coord[0][1], iso_matrix[1][0]*coord[0][0] + iso_matrix[1][1]*coord[0][1] + HEIGHT//2)
@@ -71,6 +102,8 @@ for coord in coords:
 	iso_coords.append([first_tuple, second_tuple, third_tuple, forth_tuple])
 
 called_coords = []
+
+press_coord = []
 
 while True:
 
@@ -84,38 +117,76 @@ while True:
 				exit()
 			if event.key == pygame.K_s:
 				map_save('test', coord_data)
+			if event.key == pygame.K_w:
+				ch_wall()
+			if event.key == pygame.K_f:
+				ch_floor()
 			if event.key == pygame.K_UP:
 				level += 1
 			if event.key == pygame.K_DOWN:
 				level -= 1
 
-	#TODO: implement an auto-filler for floor and walls
-
 	screen.fill((0,0,0))
 	mouse_pos = pygame.mouse.get_pos()
 	mouse_press = pygame.mouse.get_pressed()
-	for coord in iso_coords:
-		coord = [(coord[0][0], coord[0][1] - TILESIZE*level),
-		(coord[1][0], coord[1][1] - TILESIZE*level),
-		(coord[2][0], coord[2][1] - TILESIZE*level),
-		(coord[3][0], coord[3][1] - TILESIZE*level)
-		]
-		pygame.draw.polygon(screen, BG_COLOR, coord, 1)
-		if coord[3][0] - mouse_pos[0] <= TILESIZE and coord[3][0] - mouse_pos[0] > 0 and coord[3][1] - mouse_pos[1] <= TILESIZE and coord[3][1] - mouse_pos[1] > 0:
-			called = (coord[0][0], coord[0][1] - 11)
-			if mouse_press[0]:
-				pygame.draw.circle(screen, BG_COLOR, coord[1], 4, 0)
-				called_coords.append(called)
-				index = iso_coords.index([(coord[0][0], coord[0][1] + TILESIZE*level),
-					(coord[1][0], coord[1][1] + TILESIZE*level),
-					(coord[2][0], coord[2][1] + TILESIZE*level),
-					(coord[3][0], coord[3][1] + TILESIZE*level)
-					])
-				coord_data[level][index//map_size][index%map_size] = 1
+	btn_floor.draw()
+	btn_wall.draw()
+	#TODO: implement an auto-filler for walls
+
+	if floor:
+		if mouse_press[0]:
+			single_pos(mouse_pos, press_coord)
+
+			top_left = press_coord[0]
+			top_right = (mouse_pos[0], press_coord[0][1])
+			bottom_right = mouse_pos
+			bottom_left = (press_coord[0][0], mouse_pos[1])
+			
+			pygame.draw.polygon(screen, (0, 200, 100), (top_left, top_right, bottom_right, bottom_left), 2)
+
+			for coord in iso_coords:
+				coord = [(coord[0][0], coord[0][1] - TILESIZE*level),
+				(coord[1][0], coord[1][1] - TILESIZE*level),
+				(coord[2][0], coord[2][1] - TILESIZE*level),
+				(coord[3][0], coord[3][1] - TILESIZE*level)
+				]
+				pygame.draw.polygon(screen, BG_COLOR, coord, 1)
+				if coord[0][1] > top_right[1] and coord[0][1] < bottom_left[1]:
+					if coord[0][0] > top_left[0] and coord[0][0] < bottom_right[0]:
+						called = (coord[0][0], coord[0][1] - 11)
+						called_coords.append(called)
+						index = iso_coords.index([(coord[0][0], coord[0][1] + TILESIZE*level),
+							(coord[1][0], coord[1][1] + TILESIZE*level),
+							(coord[2][0], coord[2][1] + TILESIZE*level),
+							(coord[3][0], coord[3][1] + TILESIZE*level)
+							])
+						coord_data[level][index//map_size][index%map_size] = 1
+
+
+		if not mouse_press[0]:
+			press_coord = []
+	else:
+		for coord in iso_coords:
+			coord = [(coord[0][0], coord[0][1] - TILESIZE*level),
+			(coord[1][0], coord[1][1] - TILESIZE*level),
+			(coord[2][0], coord[2][1] - TILESIZE*level),
+			(coord[3][0], coord[3][1] - TILESIZE*level)
+			]
+			pygame.draw.polygon(screen, BG_COLOR, coord, 1)
+			if coord[3][0] - mouse_pos[0] <= TILESIZE and coord[3][0] - mouse_pos[0] > 0 and coord[3][1] - mouse_pos[1] <= TILESIZE and coord[3][1] - mouse_pos[1] > 0:
+				called = (coord[0][0], coord[0][1] - 11)
+				if mouse_press[0]:
+					pygame.draw.circle(screen, BG_COLOR, coord[1], 4, 0)
+					called_coords.append(called)
+					index = iso_coords.index([(coord[0][0], coord[0][1] + TILESIZE*level),
+						(coord[1][0], coord[1][1] + TILESIZE*level),
+						(coord[2][0], coord[2][1] + TILESIZE*level),
+						(coord[3][0], coord[3][1] + TILESIZE*level)
+						])
+					coord_data[level][index//map_size][index%map_size] = 1
 
 	for coord in called_coords:
 		screen.blit(tile, coord)
 	
-
 	pygame.display.update()
 	clock.tick(60)
