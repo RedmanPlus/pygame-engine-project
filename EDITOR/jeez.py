@@ -1,22 +1,21 @@
+import os
 import pygame
 import pygame_widgets
 from pygame_widgets.button import Button
 import numpy
-import os
+from converter import object_splitter
 
 def map_save(name, data):
-	os.mkdir(name)
 	res_list = []
-	data_np = numpy.asarray(data)
-	for i in range(len(data_np[0][0])):
-		res_list.append(data_np[:, i, :].tolist())
+	for z, level in enumerate(data):
+		for x, row in enumerate(level):
+			for y, rur in enumerate(row):
+				if rur:
+					res_list.append((x, y, z))
 
-	counter = 0
-	for layer in res_list:
-		write_str = '\n'.join([''.join([str(j) for j in line]) for line in layer])
-		with open(f'{name}/{counter}.txt', 'w+') as f:
-			f.write(write_str)
-		counter += 1
+	print(res_list)
+
+	object_splitter(res_list, 'tile.png', 'new')
 
 def single_pos(coord, c_list):
 	if len(c_list) == 1:
@@ -70,7 +69,7 @@ btn_wall = Button(
 
 tile = pygame.image.load('tile.png').convert_alpha()
 
-map_size = 55
+map_size = 10
 height = 6
 level = 0
 coord_data = [[[0 for l in range(map_size)] for j in range(map_size)] for i in range(height)]
@@ -154,7 +153,8 @@ while True:
 				if coord[0][1] > top_right[1] and coord[0][1] < bottom_left[1]:
 					if coord[0][0] > top_left[0] and coord[0][0] < bottom_right[0]:
 						called = (coord[0][0], coord[0][1] - 11)
-						called_coords.append(called)
+						if called not in called_coords:
+							called_coords.append(called)
 						index = iso_coords.index([(coord[0][0], coord[0][1] + TILESIZE*level),
 							(coord[1][0], coord[1][1] + TILESIZE*level),
 							(coord[2][0], coord[2][1] + TILESIZE*level),
@@ -177,7 +177,8 @@ while True:
 				called = (coord[0][0], coord[0][1] - 11)
 				if mouse_press[0]:
 					pygame.draw.circle(screen, BG_COLOR, coord[1], 4, 0)
-					called_coords.append(called)
+					if called not in called_coords:
+						called_coords.append(called)
 					index = iso_coords.index([(coord[0][0], coord[0][1] + TILESIZE*level),
 						(coord[1][0], coord[1][1] + TILESIZE*level),
 						(coord[2][0], coord[2][1] + TILESIZE*level),

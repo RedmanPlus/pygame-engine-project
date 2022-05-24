@@ -14,11 +14,9 @@ def main():
 	pygame.display.set_caption('Test')
 	clock = pygame.time.Clock()
 
-	level = Level(screen, WIDTH, HEIGHT, 'lvl/lvlt/*.txt', 'spr/Tile.png')
+	level = Level(screen, WIDTH, HEIGHT, 'lvl/new1', 'spr/Tile.png')
 	player = Player(screen, 'spr/player.png')
 	level.map_unpack()
-	level.get_coords()
-	print(level.map_coords_main)
 
 	render = Render(screen, level, player)
 
@@ -28,8 +26,12 @@ def main():
 			if event.type == pygame.QUIT:
 				pygame.quit()
 				exit()
+			if event.type == pygame.KEYDOWN:
+				if event.key == pygame.K_ESCAPE:
+					pygame.quit()
+					exit()
 
-		player.base_coord_move()
+		#player.base_coord_move()
 		render.render()
 
 		pygame.display.update()
